@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  AGENT
+}
+
+enum ContactType {
+  BUYER
+  SELLER
+  TENANT
+  OWNER
+}
+
+enum LeadSource {
+  NINETYNINE_ACRES
+  MAGICBRICKS
+  HOUSING_COM
+  REFERRAL
+  WALK_IN
+  OTHER
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  SITE_VISIT
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum PropertyType {
+  APARTMENT
+  VILLA
+  PLOT
+  COMMERCIAL
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  HOLD
+  SOLD
+  RENTED
+}
+
+enum TaskStatus {
+  PENDING
+  DONE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(AGENT)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  assignedLeads   Lead[]           @relation("AssignedAgent")
+  assignedTasks   Task[]           @relation("TaskAssignee")
+  activities      Activity[]
+  stageChanges    LeadStageChange[]
+}
+
+model Contact {
+  id        String      @id @default(uuid())
+  name      String
+  phone     String
+  email     String?
+  type      ContactType
+  createdAt DateTime    @default(now())
+
+  leads         Lead[]
+  ownedProperties Property[] @relation("PropertyOwner")
+
+  @@index([phone])
+}
+
+model Property {
+  id        String         @id @default(uuid())
+  title     String
+  type      PropertyType
+  location  String
+  price     Float
+  area      Float?
+  bedrooms  Int?
+  bathrooms Int?
+  status    PropertyStatus @default(AVAILABLE)
+  photoUrls String[]       @default([])
+  ownerId   String?
+  owner     Contact?       @relation("PropertyOwner", fields: [ownerId], references: [id])
+  createdAt DateTime       @default(now())
+
+  interestedLeads Lead[]
+}
+
+model Lead {
+  id                    String     @id @default(uuid())
+  contactId             String
+  contact               Contact    @relation(fields: [contactId], references: [id])
+  source                LeadSource
+  stage                 LeadStage  @default(NEW)
+  assignedAgentId       String?
+  assignedAgent         User?      @relation("AssignedAgent", fields: [assignedAgentId], references: [id])
+  interestedPropertyId  String?
+  interestedProperty    Property?  @relation(fields: [interestedPropertyId], references: [id])
+  budget                Float?
+  notes                 String?
+  lastActivityAt        DateTime   @default(now())
+  createdAt              DateTime  @default(now())
+
+  activities    Activity[]
+  tasks         Task[]
+  stageHistory  LeadStageChange[]
+}
+
+model LeadStageChange {
+  id        String    @id @default(uuid())
+  leadId    String
+  lead      Lead      @relation(fields: [leadId], references: [id])
+  fromStage LeadStage?
+  toStage   LeadStage
+  changedById String
+  changedBy   User    @relation(fields: [changedById], references: [id])
+  createdAt DateTime  @default(now())
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  text      String
+  createdAt DateTime @default(now())
+}
+
+model Task {
+  id         String     @id @default(uuid())
+  leadId     String
+  lead       Lead       @relation(fields: [leadId], references: [id])
+  title      String
+  dueDate    DateTime
+  assignedTo String
+  assignee   User       @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  status     TaskStatus @default(PENDING)
+  createdAt  DateTime   @default(now())
+}

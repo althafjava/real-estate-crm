@@ -1,3 +1,15 @@
 .~lock.*#
 *.swp
 .DS_Store
+
+# dependencies / build output
+node_modules/
+dist/
+build/
+
+# env files
+.env
+.env.local
+
+# frontend
+frontend/.vite/
